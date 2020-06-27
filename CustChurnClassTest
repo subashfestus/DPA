@@ -1,0 +1,79 @@
+library(class) #Load library
+library(gmodels)
+
+cusdata = read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv", header = TRUE)
+which(is.na(cusdata), arr.ind=TRUE) #check for missing values
+cusdataclean = cusdata[rowSums(is.na(cusdata)) == 0,] #remove rows with any missing values
+
+#one hot encoding for all the categorical variables
+for(unique_value in unique(cusdataclean$gender)){
+  cusdataclean[paste("gender", unique_value, sep = ".")] <- ifelse(cusdataclean$gender == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$Partner)){
+  cusdataclean[paste("Partner", unique_value, sep = ".")] <- ifelse(cusdataclean$Partner == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$Dependents)){
+  cusdataclean[paste("Dependents", unique_value, sep = ".")] <- ifelse(cusdataclean$Dependents == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$PhoneService)){
+  cusdataclean[paste("PhoneService", unique_value, sep = ".")] <- ifelse(cusdataclean$PhoneService == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$MultipleLines)){
+  cusdataclean[paste("MultipleLines", unique_value, sep = ".")] <- ifelse(cusdataclean$MultipleLines == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$InternetService)){
+  cusdataclean[paste("InternetService", unique_value, sep = ".")] <- ifelse(cusdataclean$InternetService == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$OnlineSecurity)){
+  cusdataclean[paste("OnlineSecurity", unique_value, sep = ".")] <- ifelse(cusdataclean$OnlineSecurity == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$OnlineBackup)){
+  cusdataclean[paste("OnlineBackup", unique_value, sep = ".")] <- ifelse(cusdataclean$OnlineBackup == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$DeviceProtection)){
+  cusdataclean[paste("DeviceProtection", unique_value, sep = ".")] <- ifelse(cusdataclean$DeviceProtection == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$TechSupport)){
+  cusdataclean[paste("TechSupport", unique_value, sep = ".")] <- ifelse(cusdataclean$TechSupport == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$StreamingTV)){
+  cusdataclean[paste("StreamingTV", unique_value, sep = ".")] <- ifelse(cusdataclean$StreamingTV == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$StreamingMovies)){
+  cusdataclean[paste("StreamingMovies", unique_value, sep = ".")] <- ifelse(cusdataclean$StreamingMovies == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$Contract)){
+  cusdataclean[paste("Contract", unique_value, sep = ".")] <- ifelse(cusdataclean$Contract == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$PaperlessBilling)){
+  cusdataclean[paste("PaperlessBilling", unique_value, sep = ".")] <- ifelse(cusdataclean$PaperlessBilling == unique_value, 1, 0)
+}
+for(unique_value in unique(cusdataclean$PaymentMethod)){
+  cusdataclean[paste("PaymentMethod", unique_value, sep = ".")] <- ifelse(cusdataclean$PaymentMethod == unique_value, 1, 0)
+}
+
+custnew <- custnew[-c(3:4)] #removing char columns after one hot encoding
+custnew <- custnew[c(5,1:4,6:46)] #reorder columns
+
+set.seed(1234)
+cusindx = sample(2, nrow(custnew), replace=TRUE, prob=c(0.8, 0.2)) #Split dataset 80/20
+custnew.train = custnew[cusindx==1, 2:46] #Where sample index is 1, ignore churn
+custnew.test = custnew[cusindx==2, 2:46] #Where sample index is 2, ignore churn
+summary(custnew.train)
+summary(custnew.test)
+
+custnew.trainLabels = custnew[cusindx==1, 1] #Copy from churn column
+custnew.testLabels = custnew[cusindx==2, 1]
+
+#Applying PCA for dimension reduction
+custnew.train.pca = prcomp(custnew.train, center = TRUE, scale = TRUE)
+custnew.train.pca
+
+summary(custnew.train.pca)
+screeplot(custnew.train.pca, type="lines")
+
+pc.test = predict(custnew.train.pca, newdata = custnew.test)
+
+#pca=4 and k=20
+custnew_pred.pca420 = knn(train = custnew.train.pca$x[,1:4], test = pc.test[,1:4],cl = custnew.trainLabels, k=20)
+CrossTable(x = custnew.testLabels, y = custnew_pred.pca420, prop.chisq=FALSE)
